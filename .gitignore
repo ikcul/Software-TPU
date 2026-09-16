@@ -1,0 +1,7 @@
+# Executables & Build Artifacts
+*.exe
+*.obj
+*.o
+*.pdb
+*.ilk
+build/
