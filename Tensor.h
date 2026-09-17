@@ -1,5 +1,7 @@
+#pragma once
 #include "MemoryArena.cpp"
 #include <cstddef>
+#include <cstring>
 
 template <typename T> class Tensor {
 private:
@@ -21,4 +23,10 @@ public:
   size_t get_cols() const { return cols; }
   T *get_data() { return data; }
   const T *get_data() const { return data; }
+
+  void zero() {
+    if (data && rows * cols > 0) {
+      std::memset(data, 0, rows * cols * sizeof(T));
+    }
+  }
 };

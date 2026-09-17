@@ -1,63 +1,61 @@
-# Handoff Summary & Master Build Plan
+# Handoff Summary & Master Project Plan
 **Project Name**: Custom C++ Software TPU Simulator & Low-Latency Tensor Engine  
 **Project Path**: `C:\Users\simda\.gemini\antigravity\scratch\software_tpu`  
-**Reference Guide**: `C:\Users\simda\.gemini\antigravity\brain\fbbe1589-9995-4a4b-a142-1acb36fa00e4\software_tpu_reference_guide.md`
+**GitHub Repository**: `https://github.com/ikcul/Software-TPU`
 
 ---
 
-## 1. Project Vision & Goals
-This project bridges **Low-Latency C++ Systems Engineering**, **Hardware Architecture (Google TPU)**, and **Transformer / LLM Deep Learning Foundations**.
+## 1. Project Overview & Progress Summary
 
-### What You Are Building By Hand
-1. **Low-Latency Memory Infrastructure**: Pre-allocated 64-byte aligned `MemoryArena` (zero dynamic allocations during inference).
-2. **CPU SIMD Engine**: Cache-tiled matrix multiplication ($C = A \times B$) using AVX2 256-bit FMA vector intrinsics.
-3. **Cycle-Accurate Systolic Array Simulator**: 2D grid of Weight-Stationary Processing Elements (PEs) with double-buffered `tick()` / `tock()` logic, skewed activation FIFOs, and hardware cycle counters.
-4. **Quantization Engine**: Symmetric INT8 / Block FP16 Post-Training Quantization (PTQ) & Quantization-Aware Training (QAT) with Straight-Through Estimator (STE).
-5. **Transformer Execution & LLM Mechanics**: Embedding lookups, Self-Attention ($Q K^T V$), Cross-Entropy loss / Perplexity, Autoregressive Token Generation, and KV-Cache management.
+This project bridges **Low-Latency C++ Systems Engineering**, **Hardware Architecture (Google TPU / SIMD)**, and **Transformer / LLM Deep Learning Foundations**.
 
----
+### Completed Steps & Key Architecture Achieved:
+### Completed Steps & Key Architecture Achieved:
+1. **Step 1: Memory Arena & Aligned Tensor Structures (COMPLETED & VERIFIED ✅)**
+   * **Custom Memory Arena (`MemoryArena.cpp`)**: 
+     - Pre-allocates a contiguous memory slab using `std::malloc` + manual 64-byte alignment arithmetic (`(raw + 63) & ~63`).
+     - Fast $O(1)$ bump-pointer sub-allocator without runtime heap OS overhead.
+     - **AVX2 SIMD Non-Temporal Zeroing (`reset(true)`)**: Uses `_mm256_stream_si256` and `_mm_sfence` to stream zeroes directly to physical RAM via Write-Combining (WC) buffers, bypassing L1/L2 caches to prevent cache thrashing.
+   * **Generic Tensor Template (`Tensor.h`)**:
+     - 64-byte cache line aligned allocation from `MemoryArena`.
+     - 2D Row-Major Indexing `operator()(r, c)` ($index = r \times cols + c$) with const and non-const overloads.
+     - Dimension getters and `zero()` data clearing method.
 
-## 2. Current Project State & Files Created
-
-The workspace has been initialized at `C:\Users\simda\.gemini\antigravity\scratch\software_tpu`:
-
-* **`main.cpp`**: Starter code file containing template structure and `TODO` comments for Step 1.
-* **`CMakeLists.txt`**: C++17 build file configured for MSVC (`/arch:AVX2`) and GCC/Clang (`-mavx2 -mfma -O3`).
-* **`build.bat`**: Quick build-and-run batch script for Windows PowerShell.
-* **`HANDOFF_SUMMARY.md`**: This context handoff summary file.
-
----
-
-## 3. Step-by-Step Implementation Roadmap
-
-### 📍 Step 1: Memory Arena & Aligned Tensor Structures (IN PROGRESS)
-- **Goal**: Implement `MemoryArena` (64-byte aligned allocation, bump pointer) and `Tensor<T>` struct (`operator()(r, c)`).
-- **Verification**: Verify pointer addresses are 64-byte aligned (`ptr % 64 == 0`).
-
-### Step 2: CPU GEMM Baselines
-- **Goal**: Implement naive FP32 matrix multiplication (`i-j-k`), reorder loops (`i-k-j`), and benchmark speedup.
-- **Verification**: Compare output matrices against simple ground truth.
-
-### Step 3: AVX2 SIMD Intrinsics GEMM & Cache Tiling
-- **Goal**: Implement L1 cache tiling (32x32 blocks) and AVX2 256-bit vector operations (`_mm256_fmadd_ps`).
-- **Verification**: Calculate GFLOPS and verify speedup over baseline.
-
-### Step 4: Cycle-Accurate Systolic Array Simulator
-- **Goal**: Build `ProcessingElement` struct (weight register, activation register, accumulator, latches) and 2D `SystolicArray` grid.
-- **Verification**: Feed skewed inputs into grid and verify cycle-accurate matrix multiplication outputs.
-
-### Step 5: INT8 Quantization & Model Export
-- **Goal**: Implement symmetric INT8 quantization formulas ($FP32 \rightarrow INT8 \rightarrow INT32 \rightarrow FP32$) and write a 15-line PyTorch export script (`export_model.py`).
-- **Verification**: Run quantized inference through both SIMD Engine and Systolic Array.
-
-### Step 6: Embeddings, Self-Attention & LLM Token Generation
-- **Goal**: Implement Word Embedding lookups, Self-Attention projection ($Q K^T V$), Softmax, Cross-Entropy loss / Perplexity calculation, and an Autoregressive Token Generation loop with a KV-Cache buffer.
-- **Verification**: Generate text tokens sequentially in C++.
+2. **Step 2: CPU GEMM Baselines & Memory Locality Loop Reordering (COMPLETED & VERIFIED ✅)**
+   * **Naive GEMM (`i-j-k`)**: Textbook dot-product algorithm. Experienced heavy L1 cache misses due to column-stepping stride across Matrix B ($344.73 \text{ ms}$, $0.78 \text{ GFLOPS}$).
+   * **Reordered GEMM (`i-k-j`)**: 100% L1 cache line hits by stepping across rows of Matrix B. Achieved **29.4x Speedup** ($11.73 \text{ ms}$, $22.89 \text{ GFLOPS}$).
+   * **Correctness**: Validated numerical equivalence ($\text{max\_diff} < 10^{-4}$).
 
 ---
 
-## 4. Key Concepts Mastered Throughout Project
-* **Memory Management**: Cache lines (64 bytes), pointer arithmetic, zero-allocation runtimes.
-* **SIMD & CPU Arch**: AVX2/AVX-512 registers, FMA instructions, L1/L2 cache locality, register pressure.
-* **Hardware Design**: Weight-stationary systolic arrays, clock cycle mechanics, PE double-buffering, data skewing, Roofline model (compute-bound vs memory-bandwidth bound).
-* **LLM / Transformer Math**: Word embeddings, Cosine similarity, Self-Attention, PTQ vs QAT with STE, Cross-Entropy loss, KV-Caching.
+## 2. Current Project State & Immediate Next Tasks
+
+### 📍 Step 3: AVX2 SIMD Vector Intrinsics (`_mm256_fmadd_ps`) & $32 \times 32$ L1 Cache Tiling (READY TO START 🎯)
+
+### Next Actionable Steps for the Next Session:
+1. **Implement `gemm_tiled_avx2` in `GEMM.h`**:
+   - $32 \times 32$ Cache Tiling 6-deep nested loops.
+   - AVX2 256-bit SIMD intrinsics (`_mm256_load_ps`, `_mm256_set1_ps`, `_mm256_fmadd_ps`, `_mm256_store_ps`).
+2. **Benchmark in `main.cpp`**:
+   - Benchmark $512 \times 512$ matrix multiplication comparing Naive, Reordered, and AVX2 Tiled kernels.
+   - Target GFLOPS: **50+ GFLOPS**.
+
+---
+
+## 3. Full Project Roadmap
+
+- [x] **Step 1: Memory Arena & Aligned Tensor Structures**
+- [x] **Step 2: CPU GEMM Baselines & Memory Locality Loop Reordering**
+- [ ] **Step 3: AVX2 SIMD Vector Intrinsics (`_mm256_fmadd_ps`) & $32 \times 32$ L1 Cache Tiling**
+- [ ] **Step 4: Cycle-Accurate Systolic Array TPU Simulator (2D PE Grid, skewed FIFOs)**
+- [ ] **Step 5: INT8 Quantization & PTQ/QAT Engine**
+- [ ] **Step 6: Advanced LLM Operators & Token Generation Engine**
+
+---
+
+## 4. Key Concepts Mastered So Far
+* **64-Byte Cache Line Alignment**: Eliminates SIMD cache line split penalties.
+* **Non-Temporal Stores (`_mm256_stream_si256`)**: Bypasses L1/L2 caches via Write-Combining (WC) buffers to prevent cache pollution when wiping large memory pools.
+* **Memory Barriers (`_mm_sfence`)**: Guarantees asynchronous streaming writes finish flushing to RAM.
+* **Row-Major Indexing ($r \times cols + c$)**: Converts 2D grid logic to flat 1D hardware addresses.
+* **Matrix Dimensions ($M \times K \times N$) & Inner Dimension Matching**: Dot product constraints in linear algebra.

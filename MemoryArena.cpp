@@ -1,8 +1,10 @@
+#pragma once
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <immintrin.h>
 #include <iostream>
-#include <vector>
 
 class MemoryArena {
 private:
@@ -23,7 +25,7 @@ public:
     uintptr_t aligned_addr = (raw_addr + 63) & ~63;
     aligned_buffer = reinterpret_cast<uint8_t *>(aligned_addr);
   }
-  ~MemoryArena() { free(raw_buffer); }
+  ~MemoryArena() { std::free(raw_buffer); }
 
   void *allocate(size_t bytes, size_t alignment = 64) {
     uintptr_t current_ptr =
@@ -43,5 +45,24 @@ public:
 
     return block;
   }
-  void reset() { current_offset = 0; }
+  void reset(bool zero_out = false) {
+    // Non-Temporal AVX2 SIMD zeroing: bypasses L1/L2 cache to prevent cache
+    // thrashing
+    if (zero_out && aligned_buffer && buffer_size > 0) {
+      __m256i zero_vec = _mm256_setzero_si256();
+      size_t i = 0;
+      for (; i + 32 <= buffer_size; i += 32) {
+        _mm256_stream_si256(reinterpret_cast<__m256i *>(aligned_buffer + i),
+                            zero_vec);
+      }
+      for (; i < buffer_size; ++i) {
+        aligned_buffer[i] = 0;
+      }
+      _mm_sfence();
+    }
+    current_offset = 0;
+  }
+
+  size_t get_used_bytes() const { return current_offset; }
+  size_t get_capacity() const { return buffer_size; }
 };
