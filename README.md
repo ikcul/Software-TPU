@@ -10,10 +10,11 @@ Executed on AMD Ryzen AI 9 HX ($2048 \times 2048$ Tensor Multiplication / 17.18 
 
 | Algorithm | Execution Time | Throughput | Speedup vs Baseline | L1 Cache / Hardware Efficiency |
 | :--- | :--- | :--- | :--- | :--- |
-| **Naive GEMM ($i \to j \to k$)** | 65,988.00 ms | 0.26 GFLOPS | 1.0x (Baseline) | ~6.25% L1 Utilization (93.75% Bandwidth Wasted) |
-| **Reordered GEMM ($i \to k \to j$)** | 796.15 ms | 21.58 GFLOPS | 82.9x Faster | 100.0% L1 Locality (Contiguous Row Stepping) |
-| **Tiled AVX2 SIMD (1-Thread)** | 409.16 ms | 41.99 GFLOPS | 161.3x Faster | 100.0% L1 Resident + 4-Way Register Unrolled |
-| **OpenMP Multi-Threaded + Prefetched** | **91.71 ms** | **187.33 GFLOPS** | **719.5x FASTER! 🚀** | **24 Threads Parallelized + Software Prefetched** |
+| **Naive GEMM ($i \to j \to k$)** | 69,117.90 ms | 0.25 GFLOPS | 1.0x (Baseline) | ~6.25% L1 Utilization (93.75% Bandwidth Wasted) |
+| **Reordered GEMM ($i \to k \to j$)** | 590.16 ms | 29.11 GFLOPS | 117.1x Faster | 100.0% L1 Locality (Contiguous Row Stepping) |
+| **Tiled AVX2 SIMD (1-Thread)** | 392.96 ms | 43.72 GFLOPS | 175.9x Faster | 100.0% L1 Resident + 4-Way Register Unrolled |
+| **OpenMP AVX2 (256-bit)** | 106.60 ms | 161.17 GFLOPS | 648.4x Faster | 24 Threads Parallelized + Software Prefetched |
+| **OpenMP AVX-512 (512-bit)** | **81.32 ms** | **211.27 GFLOPS** | **850.0x FASTER! 🚀** | **512-Bit Vector Registers + 211 GFLOPS Peak!** |
 
 * **Numerical Validation**: $\text{max\_diff} = 0.000000$ across all $4,194,304$ matrix output elements ($\text{PASS} \checkmark$).
 

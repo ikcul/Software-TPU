@@ -84,7 +84,7 @@ int main() {
   std::cout << "    Time   : " << time_tiled_avx2_ms << " ms\n";
   std::cout << "    GFLOPS : " << gflops_tiled_avx2 << " GFLOPS\n\n";
 
-  // 6. Benchmark Multi-Threaded OpenMP + Prefetching GEMM
+  // 6. Benchmark Multi-Threaded OpenMP + Prefetching GEMM (AVX2)
   std::cout << "[+] Running Multi-Threaded OpenMP + Prefetched AVX2 GEMM..."
             << std::flush;
   auto t6 = std::chrono::high_resolution_clock::now();
@@ -97,6 +97,23 @@ int main() {
   std::cout << " Done!\n";
   std::cout << "    Time   : " << time_omp_ms << " ms\n";
   std::cout << "    GFLOPS : " << gflops_omp << " GFLOPS\n\n";
+
+#if defined(__AVX512F__)
+  // 6b. Benchmark Multi-Threaded OpenMP AVX-512 GEMM
+  Tensor<float> C_avx512(M, N, arena);
+  std::cout << "[+] Running Multi-Threaded OpenMP AVX-512 GEMM..."
+            << std::flush;
+  auto t8 = std::chrono::high_resolution_clock::now();
+  gemm_tiled_avx512_omp(A, B, C_avx512);
+  auto t9 = std::chrono::high_resolution_clock::now();
+  double time_avx512_ms =
+      std::chrono::duration<double, std::milli>(t9 - t8).count();
+  double gflops_avx512 =
+      (total_flops / (time_avx512_ms / 1000.0)) / 1e9;
+  std::cout << " Done!\n";
+  std::cout << "    Time   : " << time_avx512_ms << " ms\n";
+  std::cout << "    GFLOPS : " << gflops_avx512 << " GFLOPS\n\n";
+#endif
 
   // 7. Correctness Verification
   float max_diff = 0.0f;
@@ -120,7 +137,7 @@ int main() {
   double speedup_omp_vs_single = time_tiled_avx2_ms / time_omp_ms;
 
   std::cout << "========================================\n";
-  std::cout << " GEMM BENCHMARK SUMMARY (512x512)\n";
+  std::cout << " GEMM BENCHMARK SUMMARY (2048x2048)\n";
   std::cout << "========================================\n";
   std::cout << " Naive (i-j-k)          : " << time_naive_ms << " ms ("
             << gflops_naive << " GFLOPS)\n";
@@ -130,9 +147,14 @@ int main() {
   std::cout << " Tiled AVX2 1-Thread    : " << time_tiled_avx2_ms << " ms ("
             << gflops_tiled_avx2 << " GFLOPS) [" << speedup_tiled_avx2
             << "x vs Naive]\n";
-  std::cout << " OpenMP + Prefetch Multi : " << time_omp_ms << " ms ("
+  std::cout << " OpenMP AVX2 (256-bit)   : " << time_omp_ms << " ms ("
             << gflops_omp << " GFLOPS) [" << speedup_omp
             << "x vs Naive, " << speedup_omp_vs_single << "x vs Single-Thread!]\n";
+#if defined(__AVX512F__)
+  std::cout << " OpenMP AVX-512 (512-bit): " << time_avx512_ms << " ms ("
+            << gflops_avx512 << " GFLOPS) [" << (time_naive_ms / time_avx512_ms)
+            << "x vs Naive!]\n";
+#endif
   std::cout << "========================================\n";
 
   return 0;
