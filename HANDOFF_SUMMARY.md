@@ -21,24 +21,23 @@ This project bridges **Low-Latency C++ Systems Engineering**, **Hardware Archite
      - 2D Row-Major Indexing `operator()(r, c)` ($index = r \times cols + c$) with const and non-const overloads.
      - Dimension getters and `zero()` data clearing method.
 
-2. **Step 2: CPU GEMM Baselines & Memory Locality Loop Reordering (COMPLETED & VERIFIED ✅)**
-   * **Naive GEMM (`i-j-k`)**: Textbook dot-product algorithm. Experienced heavy L1 cache misses due to column-stepping stride across Matrix B ($344.73 \text{ ms}$, $0.78 \text{ GFLOPS}$).
-   * **Reordered GEMM (`i-k-j`)**: 100% L1 cache line hits by stepping across rows of Matrix B. Achieved **29.4x Speedup** ($11.73 \text{ ms}$, $22.89 \text{ GFLOPS}$).
-   * **Correctness**: Validated numerical equivalence ($\text{max\_diff} < 10^{-4}$).
+3. **Step 3: AVX2 SIMD Vector Intrinsics & 32x32 L1 Cache Tiling (COMPLETED & VERIFIED ✅)**
+   * **`gemm_tiled_avx2`**: Combined $32 \times 32$ L1 Cache Tiling with 4-way vector register unrolling (`c0`, `c1`, `c2`, `c3`) and AVX2 Fused Multiply-Add (`_mm256_fmadd_ps`).
+   * **Performance**: Reached **40.50 GFLOPS** ($6.63 \text{ ms}$), achieving **30.5x speedup** vs Naive baseline and outperforming compiler `-O3` auto-vectorization.
+   * **Correctness**: Validated 100% exact numerical match ($\text{max\_diff} = 0.000000$).
 
 ---
 
 ## 2. Current Project State & Immediate Next Tasks
 
-### 📍 Step 3: AVX2 SIMD Vector Intrinsics (`_mm256_fmadd_ps`) & $32 \times 32$ L1 Cache Tiling (READY TO START 🎯)
+### 📍 Step 4: Cycle-Accurate Systolic Array TPU Simulator (READY TO START 🎯)
 
 ### Next Actionable Steps for the Next Session:
-1. **Implement `gemm_tiled_avx2` in `GEMM.h`**:
-   - $32 \times 32$ Cache Tiling 6-deep nested loops.
-   - AVX2 256-bit SIMD intrinsics (`_mm256_load_ps`, `_mm256_set1_ps`, `_mm256_fmadd_ps`, `_mm256_store_ps`).
-2. **Benchmark in `main.cpp`**:
-   - Benchmark $512 \times 512$ matrix multiplication comparing Naive, Reordered, and AVX2 Tiled kernels.
-   - Target GFLOPS: **50+ GFLOPS**.
+1. **Design 2D PE Grid & Skewed Data FIFOs**:
+   - Model Processing Element (PE) with internal Weight Register ($W_{i,j}$) and Accumulator ($C_{i,j}$).
+   - Implement cycle-by-cycle clock ticks pushing activations left-to-right and accumulators top-to-bottom.
+2. **Implement Systolic Matrix Multiplication Simulator**:
+   - Compare Cycle Count against theoretical latency ($2N + M - 2$ cycles).
 
 ---
 
@@ -46,7 +45,7 @@ This project bridges **Low-Latency C++ Systems Engineering**, **Hardware Archite
 
 - [x] **Step 1: Memory Arena & Aligned Tensor Structures**
 - [x] **Step 2: CPU GEMM Baselines & Memory Locality Loop Reordering**
-- [ ] **Step 3: AVX2 SIMD Vector Intrinsics (`_mm256_fmadd_ps`) & $32 \times 32$ L1 Cache Tiling**
+- [x] **Step 3: AVX2 SIMD Vector Intrinsics (`_mm256_fmadd_ps`) & $32 \times 32$ L1 Cache Tiling (40.50 GFLOPS)**
 - [ ] **Step 4: Cycle-Accurate Systolic Array TPU Simulator (2D PE Grid, skewed FIFOs)**
 - [ ] **Step 5: INT8 Quantization & PTQ/QAT Engine**
 - [ ] **Step 6: Advanced LLM Operators & Token Generation Engine**

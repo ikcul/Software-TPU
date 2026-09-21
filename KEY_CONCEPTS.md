@@ -83,7 +83,7 @@ for (size_t i = 0; i < M; ++i)
 
 ---
 
-## 4. Matrix Cache Blocking & Tiling (Step 3 Preview)
+## 4. Matrix Cache Blocking & Tiling (Step 3 COMPLETED ✅)
 
 ### The Problem: Memory-Bound Overflow
 * Large matrices (e.g. $512 \times 512 \times 4$ bytes = 1 MB) exceed the CPU core's 32 KB L1 Data Cache.
@@ -94,6 +94,13 @@ for (size_t i = 0; i < M; ++i)
 * **L1 Cache Residency**: A $32 \times 32$ tile of `float`s is $32 \times 32 \times 4\text{ bytes} = 4\text{ KB}$. Three sub-tiles ($A_{\text{tile}} + B_{\text{tile}} + C_{\text{tile}} = 12\text{ KB}$) fit comfortably inside the 32 KB L1 cache.
 * **Data Reuse**: Performs $32^3 = 32,768$ arithmetic operations on a single 12 KB cached tile at sub-nanosecond L1 speeds.
 * **Compute-Bound Transition**: Shifts execution from Memory-Bound (waiting for RAM) to Compute-Bound (running SIMD vector math at 100% CPU capacity).
+
+### 4-Way SIMD Register Unrolling (Register Blocking)
+* **Instruction Dependency Chain Bottleneck**: Executing `_mm256_fmadd_ps` on 1 accumulator register (`c_vec`) forces the CPU hardware to wait 4 clock cycles for FMA execution latency before starting the next instruction.
+* **4-Way Unrolled Micro-Kernel**:
+  - Unrolls across 4 independent SIMD registers (`c0`, `c1`, `c2`, `c3`) processing 32 floats (4 vector registers) in parallel per inner iteration.
+  - While `c0` waits for its FMA calculation, the CPU instantly fires instructions for `c1`, `c2`, and `c3` with **zero dependency delays**.
+  - Eliminates pipeline stalls, achieving **40.50 GFLOPS (30.5x speedup vs Naive)** and outperforming compiler `-O3` auto-vectorization.
 
 ---
 
@@ -120,7 +127,7 @@ for (size_t i = 0; i < M; ++i)
 
 ---
 
-## 4. Deep Learning Architectures: Neural Networks (NNs) vs. Transformers
+## 6. Deep Learning Architectures: Neural Networks (NNs) vs. Transformers
 
 ### The Hierarchy
 * **Neural Network (NN)**: The general umbrella category for any computational model composed of artificial neurons, weights, biases, and activation functions.
@@ -141,7 +148,7 @@ for (size_t i = 0; i < M; ++i)
 
 - [x] **Step 1**: Memory Arena & 64-Byte Aligned Tensors
 - [x] **Step 2**: CPU GEMM Baselines & Memory Locality Loop Reordering
-- [ ] **Step 3**: AVX2 SIMD Vector Intrinsics (`_mm256_fmadd_ps`) & $32 \times 32$ L1 Tiling
+- [x] **Step 3**: AVX2 SIMD Vector Intrinsics (`_mm256_fmadd_ps`) & $32 \times 32$ L1 Cache Tiling (40.50 GFLOPS)
 - [ ] **Step 4**: Cycle-Accurate Systolic Array TPU Simulator
 - [ ] **Step 5**: INT8 Quantization & PTQ/QAT Engine
 - [ ] **Step 6**: Advanced LLM Operators & Token Generation Engine

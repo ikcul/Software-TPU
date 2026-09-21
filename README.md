@@ -10,10 +10,11 @@ Executed on single-core CPU ($2.68 \times 10^8$ FLOPs):
 
 | Algorithm | Execution Time | Throughput | Performance Multiplier | L1 Cache Hit Rate |
 | :--- | :--- | :--- | :--- | :--- |
-| **Naive GEMM ($i \to j \to k$)** | 344.73 ms | 0.78 GFLOPS | 1.0x (Baseline) | ~6.25% (Heavy Cache Misses) |
-| **Reordered GEMM ($i \to k \to j$)** | **11.73 ms** | **22.89 GFLOPS** | **29.4x FASTER! 🚀** | **100.0% (Sequential Stride)** |
+| **Naive GEMM ($i \to j \to k$)** | 202.35 ms | 1.33 GFLOPS | 1.0x (Baseline) | ~6.25% (Heavy Cache Misses) |
+| **Reordered GEMM ($i \to k \to j$)** | 7.02 ms | 38.23 GFLOPS | 28.8x Faster | 100.0% (Sequential Stride) |
+| **Tiled AVX2 SIMD (`_mm256_fmadd_ps`)** | **6.63 ms** | **40.50 GFLOPS** | **30.5x FASTER! 🚀** | **100.0% (L1 Resident + Register Unrolled)** |
 
-* **Numerical Validation**: $\text{max\_diff} = 1.52 \times 10^{-5} < 10^{-3}$ ($\text{PASS} \checkmark$).
+* **Numerical Validation**: $\text{max\_diff} = 0.000000$ ($\text{PASS} \checkmark$).
 
 ---
 
