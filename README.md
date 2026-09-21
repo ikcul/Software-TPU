@@ -40,8 +40,8 @@ Executed on AMD Ryzen AI 9 HX (2048 x 2048 Tensor Multiplication / 17.18 GFLOPs)
 
 - [x] **Step 1**: Memory Arena & 64-Byte Aligned Tensors
 - [x] **Step 2**: CPU GEMM Baselines & Memory Locality Loop Reordering ($29.4\times$ Speedup)
-- [ ] **Step 3**: AVX2 SIMD Vector Intrinsics (`_mm256_fmadd_ps`) & $32 \times 32$ L1 Cache Tiling
-- [ ] **Step 4**: Cycle-Accurate Systolic Array TPU Simulator (2D Processing Element Grid)
+- [x] **Step 3**: AVX2 & AVX-512 SIMD Vector Intrinsics (`_mm512_fmadd_ps`) & $32 \times 32$ L1 Cache Tiling (262 GFLOPS)
+- [x] **Step 4**: Cycle-Accurate Systolic Array TPU Simulator (2D Processing Element Grid / 47 Clock Cycles)
 - [ ] **Step 5**: Quantization Engine (INT8 / FP16 / MXFP4 Microscaling & Outlier Cleansing)
 - [ ] **Step 6**: Advanced LLM Operators (QKV Projections, Self-Attention, FFN/SwiGLU, RoPE, Token Generation)
 
