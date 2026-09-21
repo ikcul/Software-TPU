@@ -107,15 +107,30 @@ void gemm_tiled_avx2(const Tensor<float> &A, const Tensor<float> &B,
       for (size_t j = 0; j < N; j += 32) {
 
         for (size_t i0 = i; i0 < i + 32 && i0 < M; i0++) {
-          for (size_t k0 = k; k0 < k + 32 && k0 < K; k0++) {
-            __m256 r_vec = _mm256_set1_ps(A(i0, k0)); // Broadcast A(i0, k0)
-            for (size_t j0 = j; j0 < j + 32 && j0 < N;
-                 j0 += 8) { // Step by 8 floats
-              __m256 b_vec = _mm256_load_ps(&B(k0, j0));
-              __m256 c_vec = _mm256_load_ps(&C(i0, j0));
-              c_vec = _mm256_fmadd_ps(r_vec, b_vec, c_vec);
-              _mm256_store_ps(&C(i0, j0), c_vec);
+          for (size_t j0 = j; j0 < j + 32 && j0 + 31 < N; j0 += 32) {
+            __m256 c0 = _mm256_load_ps(&C(i0, j0));
+            __m256 c1 = _mm256_load_ps(&C(i0, j0 + 8));
+            __m256 c2 = _mm256_load_ps(&C(i0, j0 + 16));
+            __m256 c3 = _mm256_load_ps(&C(i0, j0 + 24));
+
+            for (size_t k0 = k; k0 < k + 32 && k0 < K; k0++) {
+              __m256 a_vec = _mm256_set1_ps(A(i0, k0));
+
+              __m256 b0 = _mm256_load_ps(&B(k0, j0));
+              __m256 b1 = _mm256_load_ps(&B(k0, j0 + 8));
+              __m256 b2 = _mm256_load_ps(&B(k0, j0 + 16));
+              __m256 b3 = _mm256_load_ps(&B(k0, j0 + 24));
+
+              c0 = _mm256_fmadd_ps(a_vec, b0, c0);
+              c1 = _mm256_fmadd_ps(a_vec, b1, c1);
+              c2 = _mm256_fmadd_ps(a_vec, b2, c2);
+              c3 = _mm256_fmadd_ps(a_vec, b3, c3);
             }
+
+            _mm256_store_ps(&C(i0, j0), c0);
+            _mm256_store_ps(&C(i0, j0 + 8), c1);
+            _mm256_store_ps(&C(i0, j0 + 16), c2);
+            _mm256_store_ps(&C(i0, j0 + 24), c3);
           }
         }
       }
