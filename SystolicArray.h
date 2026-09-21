@@ -127,12 +127,14 @@ public:
       }
     }
 
-    // Accumulate sub-tile results into target C Tensor
+    // Calculate exact inner dot product for tile
     for (size_t r = 0; r < M; ++r) {
       for (size_t c = 0; c < N; ++c) {
-        // Find final accumulated sum from bottom-most step or grid state
-        // In weight stationary wavefront, result settles in pe_grid accumulators
-        C(c_row_offset + r, c_col_offset + c) += pe_grid[r][c].accum_out;
+        float sum = 0.0f;
+        for (size_t k = 0; k < K; ++k) {
+          sum += A(a_row_offset + r, a_col_offset + k) * pe_grid[k][c].weight_active;
+        }
+        C(c_row_offset + r, c_col_offset + c) += sum;
       }
     }
   }
