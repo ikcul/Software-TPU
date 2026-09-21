@@ -102,24 +102,33 @@ void gemm_tiled_avx2(const Tensor<float> &A, const Tensor<float> &B,
 
   C.zero();
 
-  for (size_t i = 0; i < M; i += 32) {
-    for (size_t k = 0; k < K; k += 32) {
-      for (size_t j = 0; j < N; j += 32) {
+  for (size_t k = 0; k < K; k += 32) {
+    for (size_t j = 0; j < N; j += 32) {
+      // Matrix Packing: Copy 32x32 sub-tile of B into contiguous 64-byte aligned stack buffer
+      alignas(64) float packed_B[32 * 32];
+      for (size_t k0 = 0; k0 < 32 && (k + k0) < K; ++k0) {
+        for (size_t j0 = 0; j0 < 32 && (j + j0) < N; ++j0) {
+          packed_B[k0 * 32 + j0] = B(k + k0, j + j0);
+        }
+      }
 
+      for (size_t i = 0; i < M; i += 32) {
         for (size_t i0 = i; i0 < i + 32 && i0 < M; i0++) {
           for (size_t j0 = j; j0 < j + 32 && j0 + 31 < N; j0 += 32) {
+            size_t j_local = j0 - j;
             __m256 c0 = _mm256_load_ps(&C(i0, j0));
             __m256 c1 = _mm256_load_ps(&C(i0, j0 + 8));
             __m256 c2 = _mm256_load_ps(&C(i0, j0 + 16));
             __m256 c3 = _mm256_load_ps(&C(i0, j0 + 24));
 
-            for (size_t k0 = k; k0 < k + 32 && k0 < K; k0++) {
-              __m256 a_vec = _mm256_set1_ps(A(i0, k0));
+            for (size_t k0 = 0; k0 < 32 && (k + k0) < K; k0++) {
+              __m256 a_vec = _mm256_set1_ps(A(i0, k + k0));
 
-              __m256 b0 = _mm256_load_ps(&B(k0, j0));
-              __m256 b1 = _mm256_load_ps(&B(k0, j0 + 8));
-              __m256 b2 = _mm256_load_ps(&B(k0, j0 + 16));
-              __m256 b3 = _mm256_load_ps(&B(k0, j0 + 24));
+              const float* b_ptr = &packed_B[k0 * 32 + j_local];
+              __m256 b0 = _mm256_load_ps(b_ptr);
+              __m256 b1 = _mm256_load_ps(b_ptr + 8);
+              __m256 b2 = _mm256_load_ps(b_ptr + 16);
+              __m256 b3 = _mm256_load_ps(b_ptr + 24);
 
               c0 = _mm256_fmadd_ps(a_vec, b0, c0);
               c1 = _mm256_fmadd_ps(a_vec, b1, c1);
