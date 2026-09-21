@@ -190,7 +190,7 @@ int main() {
 
   SystolicArray<16> tpu_simulator;
   std::cout << "[+] Simulating 16x16 TPU Matrix Multiply Unit (MXU)..." << std::flush;
-  tpu_simulator.multiply(A_tpu, B_tpu, C_tpu);
+  tpu_simulator.multiply_tiled(A_tpu, B_tpu, C_tpu);
   std::cout << " Done!\n";
 
   std::cout << "    Hardware Grid Size  : 16x16 Processing Elements (PEs)\n";
@@ -213,3 +213,4 @@ int main() {
 
   return 0;
 }
+
