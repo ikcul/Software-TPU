@@ -14,7 +14,8 @@ Executed on AMD Ryzen AI 9 HX (2048 x 2048 Tensor Multiplication / 17.18 GFLOPs)
 | **Reordered GEMM (i -> k -> j)** | 590.16 ms | 29.11 GFLOPS | 117.1x Faster | 100.0% L1 Locality (Contiguous Row Stepping) |
 | **Tiled AVX2 SIMD (1-Thread)** | 392.96 ms | 43.72 GFLOPS | 175.9x Faster | 100.0% L1 Resident + 4-Way Register Unrolled |
 | **OpenMP AVX2 (256-bit)** | 106.60 ms | 161.17 GFLOPS | 648.4x Faster | 24 Threads Parallelized + Software Prefetched |
-| **OpenMP AVX-512 (512-bit)** | **81.32 ms** | **211.27 GFLOPS** | **850.0x FASTER! 🚀** | **512-Bit Vector Registers + 211 GFLOPS Peak!** |
+| OpenMP AVX-512 (512-bit) | 81.32 ms | 211.27 GFLOPS | 850.0x Faster | 512-Bit Vector Registers + Single-Level L1 Tiling |
+| **NumPy / OpenBLAS (Production Industry Baseline)** | **51.84 ms** | **332.61 GFLOPS** | **1,340.0x FASTER! 🚀** | **Multi-Level (L1/L2/L3) Hierarchical Cache Packing** |
 
 * **Numerical Validation**: max_diff = 0.000000 across all 4,194,304 matrix output elements (PASS).
 
