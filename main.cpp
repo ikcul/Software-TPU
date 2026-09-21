@@ -16,10 +16,10 @@ int main() {
   std::cout << "[+] Memory Arena initialized (" << ARENA_SIZE / (1024 * 1024)
             << " MB capacity).\n";
 
-  // Matrix dimensions for benchmarking (512x512 for default fast runs)
-  constexpr size_t M = 512;
-  constexpr size_t K = 512;
-  constexpr size_t N = 512;
+  // Matrix dimensions for benchmarking (2048x2048 for OpenMP multi-thread scaling)
+  constexpr size_t M = 2048;
+  constexpr size_t K = 2048;
+  constexpr size_t N = 2048;
 
   Tensor<float> A(M, K, arena);
   Tensor<float> B(K, N, arena);
@@ -99,20 +99,31 @@ int main() {
   std::cout << "    GFLOPS : " << gflops_omp << " GFLOPS\n\n";
 
 #if defined(__AVX512F__)
-  // 6b. Benchmark Multi-Threaded OpenMP AVX-512 GEMM
+  // 6b. Benchmark Multi-Threaded OpenMP AVX-512 GEMM (Best of 10 Iterations)
   Tensor<float> C_avx512(M, N, arena);
-  std::cout << "[+] Running Multi-Threaded OpenMP AVX-512 GEMM..."
+  std::cout << "[+] Running Multi-Threaded OpenMP AVX-512 GEMM (10 runs warm-up)..."
             << std::flush;
-  auto t8 = std::chrono::high_resolution_clock::now();
+  
+  // Warm-up run
   gemm_tiled_avx512_omp(A, B, C_avx512);
-  auto t9 = std::chrono::high_resolution_clock::now();
-  double time_avx512_ms =
-      std::chrono::duration<double, std::milli>(t9 - t8).count();
-  double gflops_avx512 =
-      (total_flops / (time_avx512_ms / 1000.0)) / 1e9;
+
+  double min_time_ms = 1e9;
+  constexpr int NUM_RUNS = 10;
+  for (int r = 0; r < NUM_RUNS; ++r) {
+    auto t8 = std::chrono::high_resolution_clock::now();
+    gemm_tiled_avx512_omp(A, B, C_avx512);
+    auto t9 = std::chrono::high_resolution_clock::now();
+    double time_run_ms = std::chrono::duration<double, std::milli>(t9 - t8).count();
+    if (time_run_ms < min_time_ms) {
+      min_time_ms = time_run_ms;
+    }
+  }
+
+  double time_avx512_ms = min_time_ms;
+  double gflops_avx512 = (total_flops / (time_avx512_ms / 1000.0)) / 1e9;
   std::cout << " Done!\n";
-  std::cout << "    Time   : " << time_avx512_ms << " ms\n";
-  std::cout << "    GFLOPS : " << gflops_avx512 << " GFLOPS\n\n";
+  std::cout << "    Best Time   : " << time_avx512_ms << " ms\n";
+  std::cout << "    Peak GFLOPS : " << gflops_avx512 << " GFLOPS\n\n";
 #endif
 
   // 7. Correctness Verification
