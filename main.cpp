@@ -1,4 +1,5 @@
 #include "GEMM.h"
+#include "SystolicArray.h"
 #include "Tensor.h"
 #include <cassert>
 #include <chrono>
@@ -7,7 +8,7 @@
 
 int main() {
   std::cout << "========================================\n";
-  std::cout << " Step 1, 2 & 3: Memory Arena & GEMM Benchmark\n";
+  std::cout << " Step 1-4: Software TPU Simulator & GEMM Benchmark\n";
   std::cout << "========================================\n\n";
 
   // 1. Create Memory Arena (512 MB capacity)
@@ -166,6 +167,48 @@ int main() {
             << gflops_avx512 << " GFLOPS) [" << (time_naive_ms / time_avx512_ms)
             << "x vs Naive!]\n";
 #endif
+  std::cout << "========================================\n\n";
+
+  // 9. Step 4: Systolic Array Hardware TPU Simulator Test (16x16 Grid)
+  std::cout << "========================================\n";
+  std::cout << " STEP 4: SYSTOLIC ARRAY TPU HARDWARE SIMULATOR\n";
+  std::cout << "========================================\n";
+  constexpr size_t TPU_DIM = 16;
+  Tensor<float> A_tpu(TPU_DIM, TPU_DIM, arena);
+  Tensor<float> B_tpu(TPU_DIM, TPU_DIM, arena);
+  Tensor<float> C_tpu(TPU_DIM, TPU_DIM, arena);
+  Tensor<float> C_ref(TPU_DIM, TPU_DIM, arena);
+
+  for (size_t r = 0; r < TPU_DIM; ++r) {
+    for (size_t c = 0; c < TPU_DIM; ++c) {
+      A_tpu(r, c) = static_cast<float>((r + c) % 7) * 0.5f;
+      B_tpu(r, c) = static_cast<float>((r * c) % 5) * 0.5f;
+    }
+  }
+
+  gemm_reordered(A_tpu, B_tpu, C_ref);
+
+  SystolicArray<16> tpu_simulator;
+  std::cout << "[+] Simulating 16x16 TPU Matrix Multiply Unit (MXU)..." << std::flush;
+  tpu_simulator.multiply(A_tpu, B_tpu, C_tpu);
+  std::cout << " Done!\n";
+
+  std::cout << "    Hardware Grid Size  : 16x16 Processing Elements (PEs)\n";
+  std::cout << "    Execution Cycles    : " << tpu_simulator.get_cycle_count() << " cycles\n";
+  std::cout << "    Expected Formula    : (2 * N + M - 1) = " << (2 * 16 + 16 - 1) << " cycles\n";
+
+  float tpu_max_diff = 0.0f;
+  for (size_t r = 0; r < TPU_DIM; ++r) {
+    for (size_t c = 0; c < TPU_DIM; ++c) {
+      float diff = std::abs(C_ref(r, c) - C_tpu(r, c));
+      if (diff > tpu_max_diff) {
+        tpu_max_diff = diff;
+      }
+    }
+  }
+  std::cout << "[+] Max difference between CPU GEMM & TPU Systolic Array: " << tpu_max_diff << "\n";
+  assert(tpu_max_diff < 1e-3f && "TPU Systolic Array numerical mismatch!");
+  std::cout << "[SUCCESS] Systolic Array TPU Simulator output matches CPU GEMM perfectly!\n";
   std::cout << "========================================\n";
 
   return 0;
