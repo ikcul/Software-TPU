@@ -16,10 +16,10 @@ int main() {
   std::cout << "[+] Memory Arena initialized (" << ARENA_SIZE / (1024 * 1024)
             << " MB capacity).\n";
 
-  // 2. Setup 1024x1024 Tensors
-  constexpr size_t M = 1024;
-  constexpr size_t K = 1024;
-  constexpr size_t N = 1024;
+  // 2. Setup 512x512 Tensors
+  constexpr size_t M = 512;
+  constexpr size_t K = 512;
+  constexpr size_t N = 512;
 
   Tensor<float> A(M, K, arena);
   Tensor<float> B(K, N, arena);
