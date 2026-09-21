@@ -16,7 +16,7 @@ int main() {
   std::cout << "[+] Memory Arena initialized (" << ARENA_SIZE / (1024 * 1024)
             << " MB capacity).\n";
 
-  // Matrix dimensions for benchmarking (512x512 for full comparison including Naive)
+  // Matrix dimensions for benchmarking (512x512 for default fast runs)
   constexpr size_t M = 512;
   constexpr size_t K = 512;
   constexpr size_t N = 512;
@@ -26,6 +26,7 @@ int main() {
   Tensor<float> C_naive(M, N, arena);
   Tensor<float> C_reordered(M, N, arena);
   Tensor<float> C_tiled_avx2(M, N, arena);
+  Tensor<float> C_omp(M, N, arena);
 
   // Initialize input tensors with sample data
   for (size_t i = 0; i < M; ++i) {
@@ -69,8 +70,8 @@ int main() {
   std::cout << "    Time   : " << time_reordered_ms << " ms\n";
   std::cout << "    GFLOPS : " << gflops_reordered << " GFLOPS\n\n";
 
-  // 5. Benchmark Tiled AVX2 SIMD GEMM
-  std::cout << "[+] Running Tiled AVX2 SIMD GEMM (32x32 + _mm256_fmadd_ps)..."
+  // 5. Benchmark Single-Thread Tiled AVX2 SIMD GEMM
+  std::cout << "[+] Running Single-Thread Tiled AVX2 GEMM (32x32)..."
             << std::flush;
   auto t4 = std::chrono::high_resolution_clock::now();
   gemm_tiled_avx2(A, B, C_tiled_avx2);
@@ -83,37 +84,55 @@ int main() {
   std::cout << "    Time   : " << time_tiled_avx2_ms << " ms\n";
   std::cout << "    GFLOPS : " << gflops_tiled_avx2 << " GFLOPS\n\n";
 
-  // 6. Correctness Verification
+  // 6. Benchmark Multi-Threaded OpenMP + Prefetching GEMM
+  std::cout << "[+] Running Multi-Threaded OpenMP + Prefetched AVX2 GEMM..."
+            << std::flush;
+  auto t6 = std::chrono::high_resolution_clock::now();
+  gemm_tiled_avx2_omp(A, B, C_omp);
+  auto t7 = std::chrono::high_resolution_clock::now();
+  double time_omp_ms =
+      std::chrono::duration<double, std::milli>(t7 - t6).count();
+  double gflops_omp =
+      (total_flops / (time_omp_ms / 1000.0)) / 1e9;
+  std::cout << " Done!\n";
+  std::cout << "    Time   : " << time_omp_ms << " ms\n";
+  std::cout << "    GFLOPS : " << gflops_omp << " GFLOPS\n\n";
+
+  // 7. Correctness Verification
   float max_diff = 0.0f;
   for (size_t i = 0; i < M; ++i) {
     for (size_t j = 0; j < N; ++j) {
-      float diff = std::abs(C_naive(i, j) - C_tiled_avx2(i, j));
+      float diff = std::abs(C_naive(i, j) - C_omp(i, j));
       if (diff > max_diff) {
         max_diff = diff;
       }
     }
   }
-  std::cout << "[+] Max difference between Naive & Tiled AVX2: " << max_diff
+  std::cout << "[+] Max difference between Naive & Multi-Threaded OpenMP AVX2: " << max_diff
             << "\n";
   assert(max_diff < 1e-3f && "Numerical validation failed!");
-  std::cout << "[SUCCESS] Results match across all 3 GEMM implementations!\n\n";
+  std::cout << "[SUCCESS] Results match across all GEMM implementations!\n\n";
 
-  // 7. Summary & Speedup
+  // 8. Summary & Speedup
   double speedup_reordered = time_naive_ms / time_reordered_ms;
   double speedup_tiled_avx2 = time_naive_ms / time_tiled_avx2_ms;
-  double speedup_vs_reordered = time_reordered_ms / time_tiled_avx2_ms;
+  double speedup_omp = time_naive_ms / time_omp_ms;
+  double speedup_omp_vs_single = time_tiled_avx2_ms / time_omp_ms;
 
   std::cout << "========================================\n";
   std::cout << " GEMM BENCHMARK SUMMARY (512x512)\n";
   std::cout << "========================================\n";
-  std::cout << " Naive (i-j-k)     : " << time_naive_ms << " ms ("
+  std::cout << " Naive (i-j-k)          : " << time_naive_ms << " ms ("
             << gflops_naive << " GFLOPS)\n";
-  std::cout << " Reordered (i-k-j) : " << time_reordered_ms << " ms ("
+  std::cout << " Reordered (i-k-j)      : " << time_reordered_ms << " ms ("
             << gflops_reordered << " GFLOPS) [" << speedup_reordered
             << "x vs Naive]\n";
-  std::cout << " Tiled AVX2 (32x32): " << time_tiled_avx2_ms << " ms ("
+  std::cout << " Tiled AVX2 1-Thread    : " << time_tiled_avx2_ms << " ms ("
             << gflops_tiled_avx2 << " GFLOPS) [" << speedup_tiled_avx2
-            << "x vs Naive, " << speedup_vs_reordered << "x vs Reordered]\n";
+            << "x vs Naive]\n";
+  std::cout << " OpenMP + Prefetch Multi : " << time_omp_ms << " ms ("
+            << gflops_omp << " GFLOPS) [" << speedup_omp
+            << "x vs Naive, " << speedup_omp_vs_single << "x vs Single-Thread!]\n";
   std::cout << "========================================\n";
 
   return 0;

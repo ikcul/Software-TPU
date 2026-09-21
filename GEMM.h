@@ -147,4 +147,77 @@ void gemm_tiled_avx2(const Tensor<float> &A, const Tensor<float> &B,
   }
 }
 
+// TODO 4: Multi-Threaded AVX2 SIMD GEMM with OpenMP & Software Prefetching
+void gemm_tiled_avx2_omp(const Tensor<float> &A, const Tensor<float> &B,
+                         Tensor<float> &C) {
+  size_t M = A.get_rows();
+  size_t K = A.get_cols();
+  size_t N = B.get_cols();
+
+  if (A.get_cols() != B.get_rows() || C.get_rows() != M || C.get_cols() != N) {
+    std::cout << "GEMM Multi-Threaded: Dimension mismatch" << std::endl;
+    return;
+  }
+
+  C.zero();
+
+  // Multi-thread the outer tile loops across available CPU cores!
+  #pragma omp parallel for collapse(2) schedule(static)
+  for (size_t i = 0; i < M; i += 32) {
+    for (size_t j = 0; j < N; j += 32) {
+      // Local thread-private stack buffer for packing B
+      alignas(64) float packed_B[32 * 32];
+
+      for (size_t k = 0; k < K; k += 32) {
+        // Pack sub-tile of B into local aligned buffer
+        for (size_t k0 = 0; k0 < 32 && (k + k0) < K; ++k0) {
+          for (size_t j0 = 0; j0 < 32 && (j + j0) < N; ++j0) {
+            packed_B[k0 * 32 + j0] = B(k + k0, j + j0);
+          }
+        }
+
+        // Compute sub-tile with AVX2 SIMD and Software Prefetching
+        for (size_t i0 = i; i0 < i + 32 && i0 < M; i0++) {
+          // Explicitly prefetch next row of A into L1 Cache (_MM_HINT_T0)
+          if (i0 + 1 < M) {
+            _mm_prefetch(reinterpret_cast<const char*>(&A(i0 + 1, k)), _MM_HINT_T0);
+          }
+
+          for (size_t j0 = j; j0 < j + 32 && j0 + 31 < N; j0 += 32) {
+            size_t j_local = j0 - j;
+            __m256 c0 = _mm256_load_ps(&C(i0, j0));
+            __m256 c1 = _mm256_load_ps(&C(i0, j0 + 8));
+            __m256 c2 = _mm256_load_ps(&C(i0, j0 + 16));
+            __m256 c3 = _mm256_load_ps(&C(i0, j0 + 24));
+
+            for (size_t k0 = 0; k0 < 32 && (k + k0) < K; k0++) {
+              __m256 a_vec = _mm256_set1_ps(A(i0, k + k0));
+
+              const float* b_ptr = &packed_B[k0 * 32 + j_local];
+
+              // Software Prefetch next row of packed B into L1 Cache
+              _mm_prefetch(reinterpret_cast<const char*>(b_ptr + 32), _MM_HINT_T0);
+
+              __m256 b0 = _mm256_load_ps(b_ptr);
+              __m256 b1 = _mm256_load_ps(b_ptr + 8);
+              __m256 b2 = _mm256_load_ps(b_ptr + 16);
+              __m256 b3 = _mm256_load_ps(b_ptr + 24);
+
+              c0 = _mm256_fmadd_ps(a_vec, b0, c0);
+              c1 = _mm256_fmadd_ps(a_vec, b1, c1);
+              c2 = _mm256_fmadd_ps(a_vec, b2, c2);
+              c3 = _mm256_fmadd_ps(a_vec, b3, c3);
+            }
+
+            _mm256_store_ps(&C(i0, j0), c0);
+            _mm256_store_ps(&C(i0, j0 + 8), c1);
+            _mm256_store_ps(&C(i0, j0 + 16), c2);
+            _mm256_store_ps(&C(i0, j0 + 24), c3);
+          }
+        }
+      }
+    }
+  }
+}
+
 #endif // GEMM_H
