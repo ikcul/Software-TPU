@@ -7,16 +7,16 @@
 
 int main() {
   std::cout << "========================================\n";
-  std::cout << " Step 1 & 2: Memory Arena & GEMM Benchmark\n";
+  std::cout << " Step 1, 2 & 3: Memory Arena & GEMM Benchmark\n";
   std::cout << "========================================\n\n";
 
-  // 1. Create Memory Arena (64 MB capacity)
-  constexpr size_t ARENA_SIZE = 64 * 1024 * 1024;
+  // 1. Create Memory Arena (512 MB capacity)
+  constexpr size_t ARENA_SIZE = 512 * 1024 * 1024;
   MemoryArena arena(ARENA_SIZE);
   std::cout << "[+] Memory Arena initialized (" << ARENA_SIZE / (1024 * 1024)
             << " MB capacity).\n";
 
-  // 2. Setup 512x512 Tensors
+  // Matrix dimensions for benchmarking (512x512 for full comparison including Naive)
   constexpr size_t M = 512;
   constexpr size_t K = 512;
   constexpr size_t N = 512;
@@ -87,17 +87,16 @@ int main() {
   float max_diff = 0.0f;
   for (size_t i = 0; i < M; ++i) {
     for (size_t j = 0; j < N; ++j) {
-      float diff = std::abs(C_reordered(i, j) - C_tiled_avx2(i, j));
+      float diff = std::abs(C_naive(i, j) - C_tiled_avx2(i, j));
       if (diff > max_diff) {
         max_diff = diff;
       }
     }
   }
-  std::cout << "[+] Max difference between Reordered & Tiled AVX2: " << max_diff
+  std::cout << "[+] Max difference between Naive & Tiled AVX2: " << max_diff
             << "\n";
   assert(max_diff < 1e-3f && "Numerical validation failed!");
-  std::cout << "[SUCCESS] Results match between Reordered and Tiled AVX2 "
-               "implementations!\n\n";
+  std::cout << "[SUCCESS] Results match across all 3 GEMM implementations!\n\n";
 
   // 7. Summary & Speedup
   double speedup_reordered = time_naive_ms / time_reordered_ms;
@@ -105,16 +104,16 @@ int main() {
   double speedup_vs_reordered = time_reordered_ms / time_tiled_avx2_ms;
 
   std::cout << "========================================\n";
-  std::cout << " STEP 3 GEMM BENCHMARK SUMMARY\n";
+  std::cout << " GEMM BENCHMARK SUMMARY (512x512)\n";
   std::cout << "========================================\n";
   std::cout << " Naive (i-j-k)     : " << time_naive_ms << " ms ("
             << gflops_naive << " GFLOPS)\n";
   std::cout << " Reordered (i-k-j) : " << time_reordered_ms << " ms ("
             << gflops_reordered << " GFLOPS) [" << speedup_reordered
-            << "x speedup]\n";
+            << "x vs Naive]\n";
   std::cout << " Tiled AVX2 (32x32): " << time_tiled_avx2_ms << " ms ("
             << gflops_tiled_avx2 << " GFLOPS) [" << speedup_tiled_avx2
-            << "x vs Naive, " << speedup_vs_reordered << "x vs Reordered!]\n";
+            << "x vs Naive, " << speedup_vs_reordered << "x vs Reordered]\n";
   std::cout << "========================================\n";
 
   return 0;
