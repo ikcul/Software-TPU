@@ -4,17 +4,18 @@ A high-performance C++ simulator for hardware tensor accelerators (Google TPU / 
 
 ---
 
-## 🚀 Benchmark Performance (512 x 512 GEMM Matrix Multiplication)
+## 🚀 Benchmark Performance Summary
 
-Executed on single-core CPU ($2.68 \times 10^8$ FLOPs):
+Executed on AMD Ryzen AI 9 HX ($2048 \times 2048$ Tensor Multiplication / 17.18 GFLOPs):
 
-| Algorithm | Execution Time | Throughput | Performance Multiplier | L1 Cache Hit Rate |
+| Algorithm | Execution Time | Throughput | Speedup vs Baseline | L1 Cache / Hardware Efficiency |
 | :--- | :--- | :--- | :--- | :--- |
-| **Naive GEMM ($i \to j \to k$)** | 202.35 ms | 1.33 GFLOPS | 1.0x (Baseline) | ~6.25% (Heavy Cache Misses) |
-| **Reordered GEMM ($i \to k \to j$)** | 7.02 ms | 38.23 GFLOPS | 28.8x Faster | 100.0% (Sequential Stride) |
-| **Tiled AVX2 SIMD (`_mm256_fmadd_ps`)** | **6.63 ms** | **40.50 GFLOPS** | **30.5x FASTER! 🚀** | **100.0% (L1 Resident + Register Unrolled)** |
+| **Naive GEMM ($i \to j \to k$)** | 65,988.00 ms | 0.26 GFLOPS | 1.0x (Baseline) | ~6.25% L1 Utilization (93.75% Bandwidth Wasted) |
+| **Reordered GEMM ($i \to k \to j$)** | 796.15 ms | 21.58 GFLOPS | 82.9x Faster | 100.0% L1 Locality (Contiguous Row Stepping) |
+| **Tiled AVX2 SIMD (1-Thread)** | 409.16 ms | 41.99 GFLOPS | 161.3x Faster | 100.0% L1 Resident + 4-Way Register Unrolled |
+| **OpenMP Multi-Threaded + Prefetched** | **91.71 ms** | **187.33 GFLOPS** | **719.5x FASTER! 🚀** | **24 Threads Parallelized + Software Prefetched** |
 
-* **Numerical Validation**: $\text{max\_diff} = 0.000000$ ($\text{PASS} \checkmark$).
+* **Numerical Validation**: $\text{max\_diff} = 0.000000$ across all $4,194,304$ matrix output elements ($\text{PASS} \checkmark$).
 
 ---
 
